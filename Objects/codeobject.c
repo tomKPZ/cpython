@@ -239,6 +239,7 @@ PyCode_NewWithPosOnlyArgs(int argcount, int posonlyargcount, int kwonlyargcount,
     co->co_kwonlyargcount = kwonlyargcount;
     co->co_nlocals = nlocals;
     co->co_stacksize = stacksize;
+    co->co_bstacksize = CO_MAXBLOCKS;
     co->co_flags = flags;
     Py_INCREF(code);
     co->co_code = code;

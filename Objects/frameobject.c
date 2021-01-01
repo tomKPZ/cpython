@@ -941,7 +941,7 @@ void
 PyFrame_BlockSetup(PyFrameObject *f, int type, int handler, int level)
 {
     PyTryBlock *b;
-    if (f->f_iblock >= CO_MAXBLOCKS) {
+    if (f->f_iblock >= f->f_code->co_bstacksize) {
         Py_FatalError("block stack overflow");
     }
     b = &f->f_blockstack[f->f_iblock++];

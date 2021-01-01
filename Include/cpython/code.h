@@ -22,6 +22,7 @@ struct PyCodeObject {
     int co_kwonlyargcount;      /* #keyword only arguments */
     int co_nlocals;             /* #local variables */
     int co_stacksize;           /* #entries needed for evaluation stack */
+    int co_bstacksize;
     int co_flags;               /* CO_..., see below */
     int co_firstlineno;         /* first source line number */
     PyObject *co_code;          /* instruction opcodes */

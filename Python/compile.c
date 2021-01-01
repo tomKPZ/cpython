@@ -165,6 +165,7 @@ struct compiler_unit {
     basicblock *u_curblock; /* pointer to current block */
 
     int u_nfblocks;
+    int u_maxfblocks;
     struct fblockinfo u_fblock[CO_MAXBLOCKS];
 
     int u_firstlineno; /* the first lineno of the block */
@@ -624,6 +625,7 @@ compiler_enter_scope(struct compiler *c, identifier name,
 
     u->u_blocks = NULL;
     u->u_nfblocks = 0;
+    u->u_maxfblocks = 0;
     u->u_firstlineno = lineno;
     u->u_lineno = 0;
     u->u_col_offset = 0;
@@ -1646,6 +1648,9 @@ compiler_push_fblock(struct compiler *c, enum fblocktype t, basicblock *b,
         return compiler_error(c, "too many statically nested blocks");
     }
     f = &c->u->u_fblock[c->u->u_nfblocks++];
+    if (c->u->u_maxfblocks < c->u->u_nfblocks) {
+      c->u->u_maxfblocks = c->u->u_nfblocks;
+    }
     f->fb_type = t;
     f->fb_block = b;
     f->fb_exit = exit;
@@ -5870,6 +5875,7 @@ makecode(struct compiler *c, struct assembler *a, PyObject *consts)
                                    maxdepth, flags, a->a_bytecode, consts, names,
                                    varnames, freevars, cellvars, c->c_filename,
                                    c->u->u_name, c->u->u_firstlineno, a->a_lnotab);
+    co->co_bstacksize = c->u->u_maxfblocks;
     Py_DECREF(consts);
  error:
     Py_XDECREF(names);
