@@ -80,9 +80,9 @@ class PythonValuesTestCase(unittest.TestCase):
                 continue
             items.append((entry.name.decode("ascii"), entry.size))
 
-        expected = [("__hello__", 141),
-                    ("__phello__", -141),
-                    ("__phello__.spam", 141),
+        expected = [("__hello__", 149),
+                    ("__phello__", -149),
+                    ("__phello__.spam", 149),
                     ]
         self.assertEqual(items, expected, "PyImport_FrozenModules example "
             "in Doc/library/ctypes.rst may be out of date")

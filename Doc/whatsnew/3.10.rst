@@ -666,6 +666,10 @@ New Features
 * The :c:func:`PyType_GetSlot` function can accept static types.
   (Contributed by Hai Shi and Petr Viktorin in :issue:`41073`.)
 
+* Added :c:func:`PyCode_NewWithBlockStackSize` function: similar to
+  :c:func:`PyCode_NewWithPosOnlyArgs` but with an added block stack size.
+  (Contributed by tomKPZ in :issue:`XXXXXXX`.)
+
 
 Porting to Python 3.10
 ----------------------

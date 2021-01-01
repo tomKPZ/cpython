@@ -117,6 +117,7 @@ enum fblocktype { WHILE_LOOP, FOR_LOOP, TRY_EXCEPT, FINALLY_TRY, FINALLY_END,
                   WITH, ASYNC_WITH, HANDLER_CLEANUP, POP_VALUE, EXCEPTION_HANDLER };
 
 struct fblockinfo {
+    struct fblockinfo *fb_next;
     enum fblocktype fb_type;
     basicblock *fb_block;
     /* (optional) type-specific exit or cleanup block */
@@ -165,7 +166,8 @@ struct compiler_unit {
     basicblock *u_curblock; /* pointer to current block */
 
     int u_nfblocks;
-    struct fblockinfo u_fblock[CO_MAXBLOCKS];
+    int u_maxfblocks;
+    struct fblockinfo *u_fblock;
 
     int u_firstlineno; /* the first lineno of the block */
     int u_lineno;          /* the lineno for the current stmt */
@@ -538,6 +540,7 @@ static void
 compiler_unit_free(struct compiler_unit *u)
 {
     basicblock *b, *next;
+    struct fblockinfo *fblock, *next_fblock;
 
     compiler_unit_check(u);
     b = u->u_blocks;
@@ -547,6 +550,12 @@ compiler_unit_free(struct compiler_unit *u)
         next = b->b_list;
         PyObject_Free((void *)b);
         b = next;
+    }
+    fblock = u->u_fblock;
+    while (fblock) {
+        next_fblock = fblock->fb_next;
+        PyObject_Free(fblock);
+        fblock = next_fblock;
     }
     Py_CLEAR(u->u_ste);
     Py_CLEAR(u->u_name);
@@ -618,6 +627,8 @@ compiler_enter_scope(struct compiler *c, identifier name,
 
     u->u_blocks = NULL;
     u->u_nfblocks = 0;
+    u->u_maxfblocks = 0;
+    u->u_fblock = NULL;
     u->u_firstlineno = lineno;
     u->u_lineno = 0;
     u->u_col_offset = 0;
@@ -684,7 +695,6 @@ compiler_exit_scope(struct compiler *c)
     }
     else
         c->u = NULL;
-
 }
 
 static int
@@ -1623,15 +1633,22 @@ static int
 compiler_push_fblock(struct compiler *c, enum fblocktype t, basicblock *b,
                      basicblock *exit, void *datum)
 {
-    struct fblockinfo *f;
-    if (c->u->u_nfblocks >= CO_MAXBLOCKS) {
-        return compiler_error(c, "too many statically nested blocks");
+    struct fblockinfo *f = (struct fblockinfo *)PyObject_Malloc(
+        sizeof(struct fblockinfo));
+    if (!f) {
+        PyErr_NoMemory();
+        return 0;
     }
-    f = &c->u->u_fblock[c->u->u_nfblocks++];
+    c->u->u_nfblocks++;
+    if (c->u->u_maxfblocks < c->u->u_nfblocks) {
+      c->u->u_maxfblocks = c->u->u_nfblocks;
+    }
+    f->fb_next = c->u->u_fblock;
     f->fb_type = t;
     f->fb_block = b;
     f->fb_exit = exit;
     f->fb_datum = datum;
+    c->u->u_fblock = f;
     return 1;
 }
 
@@ -1640,9 +1657,12 @@ compiler_pop_fblock(struct compiler *c, enum fblocktype t, basicblock *b)
 {
     struct compiler_unit *u = c->u;
     assert(u->u_nfblocks > 0);
+    struct fblockinfo *f = c->u->u_fblock;
     u->u_nfblocks--;
-    assert(u->u_fblock[u->u_nfblocks].fb_type == t);
-    assert(u->u_fblock[u->u_nfblocks].fb_block == b);
+    assert(f->fb_type == t);
+    assert(f->fb_block == b);
+    c->u->u_fblock = f->fb_next;
+    PyObject_Free(f);
 }
 
 static int
@@ -1760,20 +1780,21 @@ compiler_unwind_fblock_stack(struct compiler *c, int preserve_tos, struct fblock
     if (c->u->u_nfblocks == 0) {
         return 1;
     }
-    struct fblockinfo *top = &c->u->u_fblock[c->u->u_nfblocks-1];
+    struct fblockinfo *top = c->u->u_fblock;
     if (loop != NULL && (top->fb_type == WHILE_LOOP || top->fb_type == FOR_LOOP)) {
         *loop = top;
         return 1;
     }
-    struct fblockinfo copy = *top;
+    c->u->u_fblock = top->fb_next;
     c->u->u_nfblocks--;
-    if (!compiler_unwind_fblock(c, &copy, preserve_tos)) {
+    if (!compiler_unwind_fblock(c, top, preserve_tos)) {
         return 0;
     }
     if (!compiler_unwind_fblock_stack(c, preserve_tos, loop)) {
         return 0;
     }
-    c->u->u_fblock[c->u->u_nfblocks] = copy;
+    top->fb_next = c->u->u_fblock;
+    c->u->u_fblock = top;
     c->u->u_nfblocks++;
     return 1;
 }
@@ -4508,6 +4529,9 @@ compiler_async_comprehension_generator(struct compiler *c,
     }
 
     compiler_use_next_block(c, start);
+    if (!compiler_push_fblock(c, FOR_LOOP, start, if_cleanup, NULL)) {
+        return 0;
+    }
 
     ADDOP_JUMP(c, SETUP_FINALLY, except);
     ADDOP(c, GET_ANEXT);
@@ -4561,6 +4585,8 @@ compiler_async_comprehension_generator(struct compiler *c,
     }
     compiler_use_next_block(c, if_cleanup);
     ADDOP_JUMP(c, JUMP_ABSOLUTE, start);
+
+    compiler_pop_fblock(c, FOR_LOOP, start);
 
     compiler_use_next_block(c, except);
     ADDOP(c, END_ASYNC_FOR);
@@ -5849,11 +5875,11 @@ makecode(struct compiler *c, struct assembler *a, PyObject *consts)
         Py_DECREF(consts);
         goto error;
     }
-    co = PyCode_NewWithPosOnlyArgs(posonlyargcount+posorkeywordargcount,
-                                   posonlyargcount, kwonlyargcount, nlocals_int,
-                                   maxdepth, flags, a->a_bytecode, consts, names,
-                                   varnames, freevars, cellvars, c->c_filename,
-                                   c->u->u_name, c->u->u_firstlineno, a->a_lnotab);
+    co = PyCode_NewWithBlockStackSize(
+        posonlyargcount+posorkeywordargcount, posonlyargcount, kwonlyargcount,
+        nlocals_int, maxdepth, c->u->u_maxfblocks, flags, a->a_bytecode, consts,
+        names, varnames, freevars, cellvars, c->c_filename, c->u->u_name,
+        c->u->u_firstlineno, a->a_lnotab);
     Py_DECREF(consts);
  error:
     Py_XDECREF(names);
