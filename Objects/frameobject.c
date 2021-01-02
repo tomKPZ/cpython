@@ -777,11 +777,12 @@ frame_alloc(PyCodeObject *code)
 
     Py_ssize_t ncells = PyTuple_GET_SIZE(code->co_cellvars);
     Py_ssize_t nfrees = PyTuple_GET_SIZE(code->co_freevars);
-    Py_ssize_t extras = code->co_stacksize + code->co_nlocals + ncells + nfrees;
+    Py_ssize_t nblocks = _Py_SIZE_ROUND_UP(sizeof(PyTryBlock) * code->co_bstacksize, SIZEOF_VOID_P)/SIZEOF_VOID_P;
+    Py_ssize_t extras = code->co_stacksize + code->co_nlocals + ncells + nfrees + nblocks;
     struct _Py_frame_state *state = get_frame_state();
     if (state->free_list == NULL)
     {
-        f = PyObject_GC_NewVar(PyFrameObject, &PyFrame_Type, extras + 40);
+        f = PyObject_GC_NewVar(PyFrameObject, &PyFrame_Type, extras);
         if (f == NULL) {
             return NULL;
         }
@@ -796,7 +797,7 @@ frame_alloc(PyCodeObject *code)
         f = state->free_list;
         state->free_list = state->free_list->f_back;
         if (Py_SIZE(f) < extras) {
-            PyFrameObject *new_f = PyObject_GC_Resize(PyFrameObject, f, extras + 40);
+            PyFrameObject *new_f = PyObject_GC_Resize(PyFrameObject, f, extras);
             if (new_f == NULL) {
                 PyObject_GC_Del(f);
                 return NULL;
@@ -809,7 +810,7 @@ frame_alloc(PyCodeObject *code)
     f->f_code = code;
     extras = code->co_nlocals + ncells + nfrees;
     f->f_valuestack = f->f_localsplus + extras;
-    f->f_blockstack = f->f_valuestack + code->co_stacksize;
+    f->f_blockstack = (PyTryBlock*)(f->f_valuestack + code->co_stacksize);
     for (Py_ssize_t i=0; i<extras; i++) {
         f->f_localsplus[i] = NULL;
     }
