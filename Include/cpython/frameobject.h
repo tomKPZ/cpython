@@ -33,10 +33,8 @@ struct _frame {
     PyObject *f_globals;        /* global symbol table (PyDictObject) */
     PyObject *f_locals;         /* local symbol table (any mapping) */
     PyObject **f_valuestack;    /* points after the last local */
-    PyTryBlock* f_blockstack;   /* points after the value stack */
     PyObject *f_trace;          /* Trace function */
     int f_stackdepth;           /* Depth of value stack */
-    int f_iblock;               /* Depth of f_blockstack */
     char f_trace_lines;         /* Emit per-line trace events? */
     char f_trace_opcodes;       /* Emit per-opcode trace events? */
 
@@ -50,7 +48,9 @@ struct _frame {
        PyCode_Addr2Line to calculate the line from the current
        bytecode index. */
     int f_lineno;               /* Current line number */
+    int f_iblock;               /* Depth of f_blockstack */
     PyFrameState f_state;       /* What state the frame is in */
+    PyTryBlock* f_blockstack;   /* points after the value stack */
     PyObject *f_localsplus[1];  /* locals+stack, dynamically sized */
 };
 

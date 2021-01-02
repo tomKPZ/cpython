@@ -692,12 +692,13 @@ PyDoc_STRVAR(clear__doc__,
 static PyObject *
 frame_sizeof(PyFrameObject *f, PyObject *Py_UNUSED(ignored))
 {
-    Py_ssize_t res, extras, ncells, nfrees;
+    Py_ssize_t res, extras, ncells, nfrees, nblocks;
 
     PyCodeObject *code = f->f_code;
     ncells = PyTuple_GET_SIZE(code->co_cellvars);
     nfrees = PyTuple_GET_SIZE(code->co_freevars);
-    extras = code->co_stacksize + code->co_nlocals + ncells + nfrees;
+    nblocks = _Py_SIZE_ROUND_UP(sizeof(PyTryBlock) * code->co_bstacksize, SIZEOF_VOID_P)/SIZEOF_VOID_P;
+    extras = code->co_stacksize + code->co_nlocals + ncells + nfrees + nblocks;
     /* subtract one as it is already included in PyFrameObject */
     res = sizeof(PyFrameObject) + (extras-1) * sizeof(PyObject *);
 
