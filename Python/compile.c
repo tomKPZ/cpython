@@ -4529,6 +4529,9 @@ compiler_async_comprehension_generator(struct compiler *c,
     }
 
     compiler_use_next_block(c, start);
+    if (!compiler_push_fblock(c, FOR_LOOP, start, if_cleanup, NULL)) {
+        return 0;
+    }
 
     ADDOP_JUMP(c, SETUP_FINALLY, except);
     ADDOP(c, GET_ANEXT);
@@ -4582,6 +4585,8 @@ compiler_async_comprehension_generator(struct compiler *c,
     }
     compiler_use_next_block(c, if_cleanup);
     ADDOP_JUMP(c, JUMP_ABSOLUTE, start);
+
+    compiler_pop_fblock(c, FOR_LOOP, start);
 
     compiler_use_next_block(c, except);
     ADDOP(c, END_ASYNC_FOR);
