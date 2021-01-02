@@ -22,7 +22,7 @@ struct PyCodeObject {
     int co_kwonlyargcount;      /* #keyword only arguments */
     int co_nlocals;             /* #local variables */
     int co_stacksize;           /* #entries needed for evaluation stack */
-    int co_bstacksize;
+    int co_bstacksize;          /* #entries needed for block stack */
     int co_flags;               /* CO_..., see below */
     int co_firstlineno;         /* first source line number */
     PyObject *co_code;          /* instruction opcodes */
@@ -115,16 +115,22 @@ PyAPI_DATA(PyTypeObject) PyCode_Type;
 #define PyCode_GetNumFree(op) (PyTuple_GET_SIZE((op)->co_freevars))
 
 /* Public interface */
+/* Old interface.  Use PyCode_NewWithBStackSize instead. */
 PyAPI_FUNC(PyCodeObject *) PyCode_New(
         int, int, int, int, int, PyObject *, PyObject *,
         PyObject *, PyObject *, PyObject *, PyObject *,
         PyObject *, PyObject *, int, PyObject *);
 
+/* Old interface.  Use PyCode_NewWithBStackSize instead. */
 PyAPI_FUNC(PyCodeObject *) PyCode_NewWithPosOnlyArgs(
         int, int, int, int, int, int, PyObject *, PyObject *,
         PyObject *, PyObject *, PyObject *, PyObject *,
         PyObject *, PyObject *, int, PyObject *);
-        /* same as struct above */
+
+PyAPI_FUNC(PyCodeObject *) PyCode_NewWithBStackSize(
+        int, int, int, int, int, int, int, PyObject *, PyObject *,
+        PyObject *, PyObject *, PyObject *, PyObject *,
+        PyObject *, PyObject *, int, PyObject *);
 
 /* Creates a new empty code object with the specified source location. */
 PyAPI_FUNC(PyCodeObject *)

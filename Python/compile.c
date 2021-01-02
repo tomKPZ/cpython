@@ -5875,12 +5875,12 @@ makecode(struct compiler *c, struct assembler *a, PyObject *consts)
         Py_DECREF(consts);
         goto error;
     }
-    co = PyCode_NewWithPosOnlyArgs(posonlyargcount+posorkeywordargcount,
-                                   posonlyargcount, kwonlyargcount, nlocals_int,
-                                   maxdepth, flags, a->a_bytecode, consts, names,
-                                   varnames, freevars, cellvars, c->c_filename,
-                                   c->u->u_name, c->u->u_firstlineno, a->a_lnotab);
-    co->co_bstacksize = c->u->u_maxfblocks;
+    co = PyCode_NewWithBStackSize(posonlyargcount+posorkeywordargcount,
+                                  posonlyargcount, kwonlyargcount, nlocals_int,
+                                  maxdepth, c->u->u_maxfblocks, flags,
+                                  a->a_bytecode, consts, names, varnames,
+                                  freevars, cellvars, c->c_filename,
+                                  c->u->u_name, c->u->u_firstlineno, a->a_lnotab);
     Py_DECREF(consts);
  error:
     Py_XDECREF(names);

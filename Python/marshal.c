@@ -1303,7 +1303,7 @@ r_object(RFILE *p)
             int kwonlyargcount;
             int nlocals;
             int stacksize;
-	    int bstacksize;
+            int bstacksize;
             int flags;
             PyObject *code = NULL;
             PyObject *consts = NULL;
@@ -1382,13 +1382,12 @@ r_object(RFILE *p)
                 goto code_error;
             }
 
-            v = (PyObject *) PyCode_NewWithPosOnlyArgs(
+            v = (PyObject *) PyCode_NewWithBStackSize(
                             argcount, posonlyargcount, kwonlyargcount,
-                            nlocals, stacksize, flags,
+                            nlocals, stacksize, bstacksize, flags,
                             code, consts, names, varnames,
                             freevars, cellvars, filename, name,
                             firstlineno, linetable);
-	    ((PyCodeObject*)v)->co_bstacksize = bstacksize;
             v = r_ref_insert(v, idx, flag, p);
 
           code_error:
